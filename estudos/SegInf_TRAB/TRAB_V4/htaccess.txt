@@ -1,0 +1,51 @@
+RewriteEngine On
+RewriteBase /TRAB_V4/
+
+# Permitir acesso aos arquivos e pastas existentes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Bloquear acesso à pasta 'backups'
+RewriteRule ^backups/ - [F,L]
+
+# INSERIDAS
+# Impedir listagem de diretório
+Options -Indexes
+
+# Definir CSP
+# Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';"
+<IfModule mod_headers.c>
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';"
+</IfModule>
+
+# Ativar o X-Frame-Options para proteção contra clickjacking
+Header always append X-Frame-Options SAMEORIGIN
+
+# Impedir Clickjacking
+Header set X-Frame-Options "DENY"
+
+# Limitação de taxa de requisições (mod_evasive)
+<IfModule mod_evasive20.c>
+    DOSHashTableSize 3097
+    DOSPageCount 2
+    DOSSiteCount 50
+    DOSPageInterval 1
+    DOSSiteInterval 1
+    DOSBlockingPeriod 10
+    DOSEmailNotify admin@example.com
+    DOSLogDir "/var/log/mod_evasive"
+    DOSWhitelist 127.0.0.1
+</IfModule>
+
+# Bloqueio de IPs maliciosos
+<RequireAll>
+    Require all granted
+    # Bloquear IPs específicos
+    Require not ip 192.168.1.100
+    Require not ip 10.0.0.0/8
+</RequireAll>
+
+# Configuração de cache e compactação
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml
+</IfModule>

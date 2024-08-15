@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consentimento de Usuário</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .consent-form {
+            max-width: 500px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .consent-form label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        .consent-form input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .consent-form button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .consent-form button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+<div class="consent-form">
+    <h2>Consentimento para Uso de Dados</h2>
+    <form action="processar_consentimento.php" method="POST">
+        <label>
+            <input type="checkbox" name="consentimento_comunicacoes">
+            Eu concordo em receber comunicações.
+        </label>
+        <label>
+            <input type="checkbox" name="consentimento_cookies">
+            Eu concordo com o uso de cookies.
+        </label>
+        <label>
+            Email:
+            <input type="email" name="email" required>
+        </label>
+        <button type="submit">Enviar</button>
+    </form>
+</div>
+
+</body>
+</html>

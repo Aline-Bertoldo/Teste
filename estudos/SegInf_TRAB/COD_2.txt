@@ -1,0 +1,685 @@
+---------------------autenticacao.php-----------------------
+<?php
+session_start();
+
+if (!isset($_SESSION['userid'])) {
+    header('Location: index.php');
+    exit();
+}
+
+require_once 'db.php';
+
+$userid = $_SESSION['userid'];
+
+// Verifica se a autenticação em duas etapas já está habilitada
+$sql_check_auth = "SELECT autenticacao_habilitada, codigo_autenticacao, perfil FROM usuarios WHERE id=?";
+$stmt_check_auth = $mysqli->prepare($sql_check_auth);
+$stmt_check_auth->bind_param("i", $userid);
+$stmt_check_auth->execute();
+$result_check_auth = $stmt_check_auth->get_result();
+
+if ($result_check_auth->num_rows > 0) {
+    $row = $result_check_auth->fetch_assoc();
+    if (!$row['autenticacao_habilitada']) {
+        $_SESSION['message'] = "Autenticação em duas etapas não está habilitada.";
+        if ($row['perfil'] == 'admin') {
+            header('Location: dashboard.php');
+        } else {
+            header('Location: dashboard_public.php');
+        }
+        exit();
+    }
+
+    $codigo_autenticacao = $row['codigo_autenticacao'];
+    if (!$codigo_autenticacao) {
+        $codigo_autenticacao = rand(100000, 999999);
+        $sql_update = "UPDATE usuarios SET codigo_autenticacao=? WHERE id=?";
+        $stmt_update = $mysqli->prepare($sql_update);
+        $stmt_update->bind_param("ii", $codigo_autenticacao, $userid);
+        $stmt_update->execute();
+        $stmt_update->close();
+    }
+} else {
+    $_SESSION['error'] = "Erro ao verificar autenticação em duas etapas.";
+    if ($row['perfil'] == 'admin') {
+        header('Location: dashboard.php');
+    } else {
+        header('Location: dashboard_public.php');
+    }
+    exit();
+}
+
+$stmt_check_auth->close();
+$mysqli->close();
+?>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Autenticação em Duas Etapas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Autenticação em Duas Etapas</h2>
+        <?php if (isset($_SESSION['error'])): ?>
+            <p style="color: red;"><?php echo $_SESSION['error']; ?></p>
+            <?php unset($_SESSION['error']); ?>
+        <?php endif; ?>
+        <?php if (isset($_SESSION['message'])): ?>
+            <p style="color: green;"><?php echo $_SESSION['message']; ?></p>
+            <?php unset($_SESSION['message']); ?>
+        <?php endif; ?>
+        <p>Um código de autenticação foi enviado para você. Por favor, insira o código abaixo:</p>
+        <form action="verificar_codigo.php" method="post">
+            <div class="form-group">
+                <label for="codigo">Código de Autenticação:</label>
+                <input type="text" id="codigo" name="codigo" required>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Verificar Código" class="btn">
+                <button type="button" class="btn btn-secondary" id="showCodigo">Mostrar Código de Autenticação</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal -->
+    <div id="modalCodigo" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Código de Autenticação</h3>
+            <p>O código de autenticação é: <strong><?php echo $codigo_autenticacao; ?></strong></p>
+            <p>Use este código para completar o processo de autenticação em duas etapas.</p>
+        </div>
+    </div>
+
+    <script>
+        // Mostrar modal ao clicar no botão
+        document.getElementById('showCodigo').addEventListener('click', function() {
+            var modal = document.getElementById('modalCodigo');
+            modal.style.display = 'block';
+
+            // Fechar modal ao clicar no botão de fechar
+            var closeBtn = document.getElementsByClassName('close')[0];
+            closeBtn.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+
+            // Fechar modal ao clicar fora do conteúdo do modal
+            window.addEventListener('click', function(event) {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+---------------------autenticacao.php-----------------------
+
+-------------------verificar_codigo.php---------------------
+<?php
+session_start();
+
+if (!isset($_SESSION['userid'])) {
+    header('Location: index.php');
+    exit();
+}
+
+require_once 'db.php';
+
+$userid = $_SESSION['userid'];
+$codigo = isset($_POST['codigo']) ? $_POST['codigo'] : null;
+
+// Verificar se o formulário foi submetido para tentar novamente
+if (isset($_POST['tentar_novamente'])) {
+    // Limpar a mensagem de erro anterior e permitir nova tentativa
+    unset($_SESSION['error']);
+    header('Location: autenticacao.php'); // Redireciona para autenticacao.php para tentar novamente
+    exit();
+}
+
+// Verificar se o formulário foi submetido para abortar
+if (isset($_POST['abortar'])) {
+    header('Location: index.php'); // Redireciona para index.php ao abortar
+    exit();
+}
+
+// Verificar se o código foi submetido e realizar a verificação
+if ($codigo !== null) {
+    // Verifica código de autenticação no banco de dados de forma segura com prepared statement
+    $sql = "SELECT codigo_autenticacao FROM usuarios WHERE id=?";
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param("i", $userid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $codigo_autenticacao_bd = $row['codigo_autenticacao'];
+
+        if ($codigo == $codigo_autenticacao_bd) {
+            // Código correto, conclui autenticação em duas etapas de forma segura com prepared statement
+            $sql_update = "UPDATE usuarios SET codigo_autenticacao=NULL WHERE id=?";
+            $stmt_update = $mysqli->prepare($sql_update);
+            $stmt_update->bind_param("i", $userid);
+
+            if ($stmt_update->execute()) {
+                $_SESSION['message'] = "Autenticação em duas etapas concluída!";
+                header('Location: dashboard.php');
+                exit();
+            } else {
+                $_SESSION['error'] = "Erro ao concluir autenticação em duas etapas: " . $mysqli->error;
+            }
+
+            $stmt_update->close();
+        } else {
+            $_SESSION['error'] = "Código de autenticação incorreto!";
+            $_SESSION['show_retry_buttons'] = true; // Definir flag para mostrar botões de tentar novamente e abortar
+        }
+    } else {
+        $_SESSION['error'] = "Erro ao verificar código de autenticação.";
+    }
+
+    $stmt->close();
+}
+
+$mysqli->close();
+?>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Verificar Código de Autenticação</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding-top: 50px;
+        }
+
+        .error-message {
+            color: red;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: green;
+            margin-bottom: 10px;
+        }
+
+        .retry-buttons {
+            margin-top: 20px;
+        }
+
+        .retry-buttons input[type="submit"] {
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .retry-buttons input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h2>Verificar Código de Autenticação</h2>
+    <?php if (isset($_SESSION['error'])): ?>
+        <p class="error-message"><?php echo $_SESSION['error']; ?></p>
+        <?php if (isset($_SESSION['show_retry_buttons']) && $_SESSION['show_retry_buttons']): ?>
+            <form class="retry-buttons" method="post">
+                <input type="submit" name="abortar" value="Abortar">
+                <input type="submit" name="tentar_novamente" value="Tentar Novamente">
+                <input type="hidden" name="codigo" value="<?php echo htmlspecialchars($codigo); ?>">
+            </form>
+        <?php endif; ?>
+        <?php unset($_SESSION['error']); ?>
+        <?php unset($_SESSION['show_retry_buttons']); ?>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['message'])): ?>
+        <p class="success-message"><?php echo $_SESSION['message']; ?></p>
+        <?php unset($_SESSION['message']); ?>
+    <?php endif; ?>
+</body>
+</html>
+-------------------verificar_codigo.php---------------------
+
+-----------------dashboard_public.php---------------------
+<?php
+session_start();
+
+if (!isset($_SESSION['userid'])) {
+    header('Location: index.php');
+    exit();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Público</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .dashboard-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard-container h1 {
+            margin-bottom: 20px;
+        }
+
+        .dashboard-container p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-container a {
+            display: block;
+            width: calc(100% - 20px);
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-container a:hover {
+            background-color: #0069d9;
+        }
+
+        .dashboard-container .logout-link {
+            background-color: #d9534f;
+        }
+
+        .dashboard-container .logout-link:hover {
+            background-color: #c9302c;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>Bem-vindo ao Dashboard, <?php echo htmlspecialchars($_SESSION['username']); ?></h1>
+        <p>Você está na área pública do sistema.</p>
+
+        <a href="logout.php" class="logout-link">Sair</a>
+    </div>
+</body>
+</html>
+-----------------dashboard_public.php---------------------
+
+-------------------dashboard.php------------------
+<?php
+session_start();
+
+if (!isset($_SESSION['userid']) || $_SESSION['perfil'] != 'admin') {
+    header('Location: dashboard_public.php');
+    exit();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .dashboard-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard-container h1 {
+            margin-bottom: 20px;
+        }
+
+        .dashboard-container p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-container a {
+            display: block;
+            width: calc(100% - 20px);
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-container a:hover {
+            background-color: #45a049;
+        }
+
+        .dashboard-container .logout-link {
+            background-color: #d9534f;
+        }
+
+        .dashboard-container .logout-link:hover {
+            background-color: #c9302c;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>Bem-vindo ao Painel de Administração, <?php echo htmlspecialchars($_SESSION['username']); ?></h1>
+        <p>Aqui você pode gerenciar o sistema.</p>
+
+        <a href="criar_backup.php">Criar Backup</a>
+        <a href="logout.php" class="logout-link">Sair</a>
+    </div>
+</body>
+</html>
+-------------------dashboard.php------------------
+
+------------------criar_backup.php------------
+<?php
+session_start();
+require_once 'db.php';
+require_once 'utils.php'; // Inclua o arquivo de funções utilitárias
+
+// Verifica se o usuário está autenticado
+if (!isset($_SESSION['userid'])) {
+    header('Location: index.php');
+    exit();
+}
+
+// Obtém o ID do usuário autenticado
+$user_id = $_SESSION['userid'];
+
+// Obtém o nome do usuário (se disponível)
+$user_query = "SELECT username FROM usuarios WHERE id = ?";
+$stmt = $mysqli->prepare($user_query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$user_result = $stmt->get_result();
+$user_row = $user_result->fetch_assoc();
+$username = $user_row['username'] ?? 'Usuário Desconhecido';
+$stmt->close();
+
+// Verifica o token CSRF
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("Ação não autorizada.");
+    }
+
+    // Define o nome do arquivo de backup
+    $backup_file = 'backup_' . date('Y-m-d_H-i-s') . '.csv';
+    $backup_path = __DIR__ . '/backups/' . $backup_file;
+
+    // Certifique-se de que a pasta 'backups' existe
+    if (!is_dir(__DIR__ . '/backups')) {
+        mkdir(__DIR__ . '/backups', 0755, true);
+    }
+
+    // Abre o arquivo para escrita
+    $fp = fopen($backup_path, 'w');
+
+    // Verifica se o arquivo foi aberto com sucesso
+    if ($fp === false) {
+        $log_message = "Erro ao criar o arquivo de backup: $backup_file. Usuário: $username.";
+        log_activity($log_message); // Registra o erro no log
+        $_SESSION['error'] = "Erro ao criar o arquivo de backup.";
+        header('Location: criar_backup.php');
+        exit();
+    }
+
+    // Consulta para selecionar todos os dados da tabela 'usuarios'
+    $query = "SELECT * FROM usuarios";
+    $result = $mysqli->query($query);
+
+    // Verifica se a consulta foi executada com sucesso
+    if ($result === false) {
+        $log_message = "Erro ao executar a consulta para o backup. Usuário: $username.";
+        log_activity($log_message); // Registra o erro no log
+        fclose($fp);
+        $_SESSION['error'] = "Erro ao executar a consulta.";
+        header('Location: criar_backup.php');
+        exit();
+    }
+
+    // Obtém os nomes das colunas
+    $fields = $result->fetch_fields();
+    $headers = [];
+    foreach ($fields as $field) {
+        $headers[] = $field->name;
+    }
+
+    // Escreve os nomes das colunas no arquivo CSV
+    fputcsv($fp, $headers);
+
+    // Escreve os dados no arquivo CSV
+    while ($row = $result->fetch_assoc()) {
+        fputcsv($fp, $row);
+    }
+
+    // Fecha o arquivo e a conexão com o banco de dados
+    fclose($fp);
+    $mysqli->close();
+
+    // Registra a criação bem-sucedida do backup no log
+    $log_message = "Backup criado com sucesso: " . basename($backup_file) . " para o usuário '$username'.";
+    log_activity($log_message);
+
+    $_SESSION['message'] = "Backup criado com sucesso por $username: <a href='backups/$backup_file'>$backup_file</a>";
+    header('Location: criar_backup.php'); // Redireciona para evitar reenvio do formulário
+    exit();
+}
+
+// Geração do token CSRF
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+?>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Criar Backup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding-top: 50px;
+        }
+
+        .backup-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .backup-container h2 {
+            margin-bottom: 20px;
+        }
+
+        .backup-container a {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            font-size: 16px;
+        }
+
+        .backup-container a:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="backup-container">
+        <h2>Criar Backup</h2>
+        <?php if (isset($_SESSION['message'])): ?>
+            <p style="color: green;"><?php echo $_SESSION['message']; ?></p>
+            <?php unset($_SESSION['message']); ?>
+        <?php endif; ?>
+        <?php if (isset($_SESSION['error'])): ?>
+            <p style="color: red;"><?php echo $_SESSION['error']; ?></p>
+            <?php unset($_SESSION['error']); ?>
+        <?php endif; ?>
+        <form method="post" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <input type="submit" value="Criar Backup">
+        </form>
+        <br>
+        <a href="dashboard.php">Voltar ao Dashboard</a>
+    </div>
+</body>
+</html>
+------------------criar_backup.php------------
+
+------------------logout.php------------------
+<?php
+session_start();
+require_once 'utils.php';
+
+// Registro de atividade de logout
+$user = isset($_SESSION['username']) ? $_SESSION['username'] : 'Usuário Desconhecido';
+$log_message = "Usuário '$user' realizou logout.";
+log_activity($log_message);
+
+// Limpa todas as variáveis de sessão
+session_unset();
+
+// Destrói a sessão
+session_destroy();
+
+// Remove o cookie de sessão, se existir
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000,
+        $params["path"], $params["domain"],
+        $params["secure"], $params["httponly"]
+    );
+}
+
+// Redireciona para a página inicial
+header('Location: index.php');
+exit();
+?>
+------------------logout.php------------------

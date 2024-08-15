@@ -1,0 +1,10 @@
+id,username,email,senha,autenticacao_habilitada,codigo_autenticacao,criado_em
+1,admin,admin@uol.com,$2y$10$4k7hcsF41P/f.VCUz6ovUex27BGMC5QPvoO4uohLPQlvZj9pWJSdu,0,,"2024-07-02 10:50:27"
+2,outro,outro@uol.com,$2y$10$hq3q93tn7bySlYtbx8mEGOgMj7pWuxvkadh.zx/X1t0xlIV7QTkkC,1,,"2024-07-02 10:53:58"
+3,gi,giovanna@gmail.com,$2y$10$01ItZCIpNMCdS90061hMsOKhvz6na1E.6FYC7PsaK3Dc1vKNLSyaK,1,170921,"2024-07-02 15:01:21"
+4,Aluno,aluno@teste.com,$2y$10$UI0zDGS4lYH5FZxB4lvhdOwpg/SKi1DUJvN53bUME4UKNE1gVnSX.,1,,"2024-07-04 10:39:02"
+5,Pessoa,pessoa@teste.com,$2y$10$Y5HDtE1bai7N2lDgkwIWlOPi0mMUXL441a8CobRf61CG53HzJ0Bda,1,,"2024-07-04 10:44:15"
+6,gigi,esther@gmail.com,$2y$10$5.jyLmVD6iOwbY/2Kl6ObezgUBk1DepPxVkQ2JDOwjTQ.lt2pldzu,0,,"2024-07-04 16:54:02"
+7,Admin18,Admin@6263,$2y$10$aVoACrGgAcz7Tn1DyymZTOxmLewgLXs1YmQgMLCyU1uvHLQetVu.e,1,,"2024-07-08 10:38:03"
+8,Bruna,bruna@teste.com,$2y$10$uDn8QYRIOpVj10S.0T17l./VWWwVVLM/VycAZI58xqcVHwc2Hlrl2,1,,"2024-07-08 16:53:05"
+9,giovanna,gi2020@teste.com,$2y$10$ap1bKal7U7RbJg0Iwu2IceZQTxaxlW2qJ8CEW9X/Ozz26hWz8HQ5W,1,,"2024-07-08 17:04:45"
